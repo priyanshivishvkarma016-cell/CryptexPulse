@@ -1,29 +1,11 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-/**
- * @title CryptexPulse
- * @dev A decentralized pulse monitoring system for tracking crypto market sentiment and events
- */
-contract CryptexPulse {
-    
-    struct Pulse {
-        uint256 id;
-        address creator;
-        string sentiment; // "bullish", "bearish", "neutral"
+"bullish", "bearish", "neutral"
         string message;
         uint256 timestamp;
         uint256 upvotes;
         uint256 downvotes;
     }
     
-    // State variables
-    uint256 private pulseCounter;
-    mapping(uint256 => Pulse) public pulses;
-    mapping(uint256 => mapping(address => bool)) public hasVoted;
-    mapping(address => uint256[]) public userPulses;
-    
-    // Events
+    Events
     event PulseCreated(uint256 indexed pulseId, address indexed creator, string sentiment, uint256 timestamp);
     event PulseVoted(uint256 indexed pulseId, address indexed voter, bool isUpvote);
     event SentimentUpdated(uint256 indexed pulseId, string newSentiment);
@@ -140,3 +122,6 @@ contract CryptexPulse {
         return int256(pulse.upvotes) - int256(pulse.downvotes);
     }
 }
+// 
+update
+// 
