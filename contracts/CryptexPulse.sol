@@ -1,127 +1,116 @@
-"bullish", "bearish", "neutral"
-        string message;
-        uint256 timestamp;
-        uint256 upvotes;
-        uint256 downvotes;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * @title CryptexPulse Token (CPULSE)
+ * @dev Standard ERC20 token with ownership control, minting and burning
+ */
+contract CryptexPulse {
+    string public name = "CryptexPulse";
+    string public symbol = "CPULSE";
+    uint8 public decimals = 18;
+    uint256 public totalSupply;
+
+    address public owner;
+
+    // Token balances mapping
+    mapping(address => uint256) private balances;
+
+    // Allowances mapping
+    mapping(address => mapping(address => uint256)) private allowances;
+
+    // Events for transfer, approval, ownership changes
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    // Only owner modifier
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Caller is not owner");
+        _;
     }
-    
-    Events
-    event PulseCreated(uint256 indexed pulseId, address indexed creator, string sentiment, uint256 timestamp);
-    event PulseVoted(uint256 indexed pulseId, address indexed voter, bool isUpvote);
-    event SentimentUpdated(uint256 indexed pulseId, string newSentiment);
-    
-    /**
-     * @dev Creates a new pulse with market sentiment
-     * @param _sentiment The market sentiment ("bullish", "bearish", "neutral")
-     * @param _message The pulse message describing the sentiment
-     */
-    function createPulse(string memory _sentiment, string memory _message) public {
-        require(bytes(_sentiment).length > 0, "Sentiment cannot be empty");
-        require(bytes(_message).length > 0, "Message cannot be empty");
-        
-        pulseCounter++;
-        
-        Pulse memory newPulse = Pulse({
-            id: pulseCounter,
-            creator: msg.sender,
-            sentiment: _sentiment,
-            message: _message,
-            timestamp: block.timestamp,
-            upvotes: 0,
-            downvotes: 0
-        });
-        
-        pulses[pulseCounter] = newPulse;
-        userPulses[msg.sender].push(pulseCounter);
-        
-        emit PulseCreated(pulseCounter, msg.sender, _sentiment, block.timestamp);
+
+    // Constructor to mint initial supply to the deployer (owner)
+    constructor(uint256 initialSupply) {
+        owner = msg.sender;
+        totalSupply = initialSupply * 10**decimals;
+        balances[owner] = totalSupply;
+        emit Transfer(address(0), owner, totalSupply);
     }
-    
-    /**
-     * @dev Vote on a pulse (upvote or downvote)
-     * @param _pulseId The ID of the pulse to vote on
-     * @param _isUpvote True for upvote, false for downvote
-     */
-    function votePulse(uint256 _pulseId, bool _isUpvote) public {
-        require(_pulseId > 0 && _pulseId <= pulseCounter, "Invalid pulse ID");
-        require(!hasVoted[_pulseId][msg.sender], "Already voted on this pulse");
-        
-        Pulse storage pulse = pulses[_pulseId];
-        
-        if (_isUpvote) {
-            pulse.upvotes++;
-        } else {
-            pulse.downvotes++;
-        }
-        
-        hasVoted[_pulseId][msg.sender] = true;
-        
-        emit PulseVoted(_pulseId, msg.sender, _isUpvote);
+
+    // Balance of given address
+    function balanceOf(address account) external view returns (uint256) {
+        return balances[account];
     }
-    
-    /**
-     * @dev Get pulse details by ID
-     * @param _pulseId The ID of the pulse
-     * @return id The pulse ID
-     * @return creator The address of the pulse creator
-     * @return sentiment The market sentiment
-     * @return message The pulse message
-     * @return timestamp The creation timestamp
-     * @return upvotes The number of upvotes
-     * @return downvotes The number of downvotes
-     */
-    function getPulse(uint256 _pulseId) public view returns (
-        uint256 id,
-        address creator,
-        string memory sentiment,
-        string memory message,
-        uint256 timestamp,
-        uint256 upvotes,
-        uint256 downvotes
-    ) {
-        require(_pulseId > 0 && _pulseId <= pulseCounter, "Invalid pulse ID");
-        
-        Pulse memory pulse = pulses[_pulseId];
-        return (
-            pulse.id,
-            pulse.creator,
-            pulse.sentiment,
-            pulse.message,
-            pulse.timestamp,
-            pulse.upvotes,
-            pulse.downvotes
-        );
+
+    // Transfer tokens to specified address
+    function transfer(address recipient, uint256 amount) external returns (bool) {
+        require(recipient != address(0), "Transfer to zero address");
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+
+        balances[msg.sender] -= amount;
+        balances[recipient] += amount;
+
+        emit Transfer(msg.sender, recipient, amount);
+        return true;
     }
-    
-    /**
-     * @dev Get all pulse IDs created by a user
-     * @param _user The address of the user
-     * @return Array of pulse IDs
-     */
-    function getUserPulses(address _user) public view returns (uint256[] memory) {
-        return userPulses[_user];
+
+    // Approve spender to spend on behalf of msg.sender
+    function approve(address spender, uint256 amount) external returns (bool) {
+        require(spender != address(0), "Approve to zero address");
+
+        allowances[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
     }
-    
-    /**
-     * @dev Get the total number of pulses created
-     * @return Total pulse count
-     */
-    function getTotalPulses() public view returns (uint256) {
-        return pulseCounter;
+
+    // Check remaining allowance for spender on owner tokens
+    function allowance(address tokenOwner, address spender) external view returns (uint256) {
+        return allowances[tokenOwner][spender];
     }
-    
-    /**
-     * @dev Get the net sentiment score for a pulse (upvotes - downvotes)
-     * @param _pulseId The ID of the pulse
-     * @return Net sentiment score
-     */
-    function getPulseSentimentScore(uint256 _pulseId) public view returns (int256) {
-        require(_pulseId > 0 && _pulseId <= pulseCounter, "Invalid pulse ID");
-        
-        Pulse memory pulse = pulses[_pulseId];
-        return int256(pulse.upvotes) - int256(pulse.downvotes);
+
+    // Transfer tokens from sender to recipient using allowance mechanism
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool) {
+        require(sender != address(0), "Transfer from zero address");
+        require(recipient != address(0), "Transfer to zero address");
+        require(balances[sender] >= amount, "Insufficient balance");
+        require(allowances[sender][msg.sender] >= amount, "Allowance exceeded");
+
+        balances[sender] -= amount;
+        balances[recipient] += amount;
+        allowances[sender][msg.sender] -= amount;
+
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+
+    // Mint new tokens to account (owner only)
+    function mint(address account, uint256 amount) external onlyOwner {
+        require(account != address(0), "Mint to zero address");
+
+        uint256 mintAmount = amount * 10**decimals;
+        totalSupply += mintAmount;
+        balances[account] += mintAmount;
+
+        emit Transfer(address(0), account, mintAmount);
+    }
+
+    // Burn tokens from account (owner only)
+    function burn(address account, uint256 amount) external onlyOwner {
+        require(account != address(0), "Burn from zero address");
+        uint256 burnAmount = amount * 10**decimals;
+        require(balances[account] >= burnAmount, "Burn amount exceeds balance");
+
+        balances[account] -= burnAmount;
+        totalSupply -= burnAmount;
+
+        emit Transfer(account, address(0), burnAmount);
+    }
+
+    // Transfer ownership to new owner (owner only)
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "New owner zero address");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
     }
 }
-// 
-update
-// 
